@@ -1,140 +1,43 @@
 # Pegasus — AI-Powered Market Research Engine
 
-Pegasus is a **production-grade AI market research system** that autonomously generates research vectors, mines web intelligence, synthesizes structured strategic insights, and exports professional reports in **Markdown or PDF** format.
+Pegasus is a **production-grade AI market research engine** that autonomously plans research, gathers web intelligence, and synthesizes structured strategic reports using Large Language Models (LLMs).
 
-The system supports both:
-- 🖥️ **Graphical User Interface (GUI)** using PyQt5  
-- ⚙️ **Command-Line Interface (CLI)** for headless and automated execution  
+It is designed to work in **real-world conditions** with unreliable networks, partial data, and long-running research tasks.
+
+Pegasus supports both:
+- 🖥️ **GUI Mode** (PyQt5 desktop application)
+- ⚙️ **CLI Mode** (headless execution for automation)
 
 ---
 
-## 🚀 Key Features
+## ✨ Key Features
 
-- 🧠 **LLM-driven research planning** (multi-vector analysis)
+- 🧠 **LLM-driven multi-vector research planning**
 - 🌐 **Automated web search & content extraction**
-- 🔁 **Retry-safe & fallback-enabled AI calls**
+- 🔁 **Fault-tolerant crawling** (timeouts, retries, graceful skips)
 - 📚 **Per-vector source attribution (citations)**
-- 📄 **Professional PDF & Markdown export**
-- 🖥️ **Desktop GUI (PyQt5)**
-- ⚙️ **CLI mode for automation**
-- 🧩 **Single unified launcher (`main.py`)**
+- 📄 **Export reports as Markdown or PDF**
+- 🖥️ **Desktop GUI** and ⚙️ **CLI** from a single codebase
+- 🧩 **Modular, extensible architecture**
 
 ---
 
 ## 🧠 High-Level Architecture
 
-            ┌──────────────┐
-            │   User Input │
-            └──────┬───────┘
-                   │
-      ┌────────────▼────────────┐
-      │        main.py           │
-      │   (Mode Dispatcher)      │
-      └──────┬──────────┬───────┘
-             │          │
-    ┌────────▼───┐   ┌──▼────────┐
-    │   GUI Mode  │   │ CLI Mode  │
-    │  (ui.py)   │   │ (cli.py)  │
-    └──────┬─────┘   └────┬──────┘
-           │              │
-           └──────┬───────┘
-                  ▼
-    ┌──────────────────────────┐
-    │ RecursiveSectionalAgent  │
-    │        (agent.py)        │
-    └──────┬─────────┬────────┘
-           │         │
- ┌─────────▼───┐ ┌───▼─────────┐
- │ Web Search  │ │  LLM Engine │
- │  (DDGS)     │ │  (Ollama)   │
- └─────────┬───┘ └────┬────────┘
-           │          │
-    ┌──────▼──────────▼──────┐
-    │ Vector Summaries with   │
-    │ Source Attribution      │
-    └──────────┬──────────────┘
-               ▼
-    ┌─────────────────────────┐
-    │ Final Strategic Report  │
-    │  (Markdown / PDF)       │
-    └─────────────────────────┘
+```mermaid
+flowchart TD
+    A[User Input] --> B[main.py<br/>Mode Dispatcher]
 
+    B --> C[GUI Mode<br/>ui.py]
+    B --> D[CLI Mode<br/>cli.py]
 
----
+    C --> E[RecursiveSectionalAgent<br/>agent.py]
+    D --> E
 
-## 🔍 How Pegasus Works
+    E --> F[Web Search<br/>DuckDuckGo]
+    E --> G[LLM Engine<br/>Ollama]
 
-1. **Research Vector Generation**  
-   The LLM generates multiple focused research queries for a given topic.
+    F --> H[Vector Summaries<br/>with Sources]
+    G --> H
 
-2. **Web Intelligence Mining**  
-   Each vector triggers:
-   - DuckDuckGo search
-   - Safe URL fetching with timeouts
-   - Content extraction via Trafilatura
-
-3. **Vector-Level Summarization**  
-   Each research vector is summarized independently along with its sources.
-
-4. **Master Report Synthesis**  
-   All vector summaries are combined into a structured strategic report.
-
-5. **Export**  
-   Reports can be exported as:
-   - `.md` (Markdown)
-   - `.pdf` (Professional PDF using ReportLab)
-
----
-
-## 🖥️ Usage
-
-### ▶️ GUI Mode (Default)
-```bash
-python main.py
-
-▶️ GUI Mode (Explicit)
-python main.py gui
-▶️ CLI Mode
-python main.py cli "AI semiconductor market overview"
-
-▶️ CLI Mode + PDF Export
-python main.py cli "AI semiconductor market overview" --pdf
-
-🔐 Environment Setup
-
-Pegasus requires an Ollama API key.
-
-Windows (PowerShell)
-setx OLLAMA_API_KEY "your_api_key_here"
-
-Linux / macOS
-export OLLAMA_API_KEY="your_api_key_here"
-
-
-Restart the terminal after setting the variable.
-
-🧰 Tech Stack
-
-Python 3.10+
-
-Ollama (LLM inference)
-
-PyQt5 (GUI)
-
-DuckDuckGo Search (ddgs)
-
-Trafilatura (web extraction)
-
-ReportLab (PDF generation)
-
-📌 Use Cases
-
-Market & competitor analysis
-
-Strategic planning and forecasting
-
-Due diligence research
-
-Consulting & analytics workflows
-
-AI-assisted knowledge synthesis
+    H --> I[Final Strategic Report<br/>Markdown / PDF]
