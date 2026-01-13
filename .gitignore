@@ -2,5 +2,14 @@ venv
 .venv
 .env
 .DS_Store
+# Python
 __pycache__/
 *.pyc
+*.pyo
+
+# Virtual environment
+venv/
+
+# Generated reports
+Pegasus_Report.md
+*.pdf

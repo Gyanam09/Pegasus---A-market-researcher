@@ -9,7 +9,7 @@ This file is responsible ONLY for:
 """
 
 import markdown
-from pdf_exporter import export_markdown_to_pdf
+from Pegasus---A-market-researcher.pdf_exporter import export_markdown_to_pdf
 from datetime import datetime
 
 from PyQt5.QtWidgets import (

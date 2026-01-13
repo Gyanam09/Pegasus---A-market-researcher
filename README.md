@@ -1,166 +1,140 @@
-<img width="1470" height="956" alt="Screenshot 2026-01-11 at 8 41 40 PM" src="https://github.com/user-attachments/assets/c0ef0173-7c76-4b5c-b870-9825a6779e87" />
-# Pegasus — Autonomous AI Market Research Agent
+# Pegasus — AI-Powered Market Research Engine
 
-Pegasus is a **desktop-based autonomous AI market research and strategic analysis system**. It performs multi-vector web research, synthesizes real-world intelligence using Large Language Models (LLMs), and generates **consulting-grade strategic reports** (Executive Summary, SWOT, PESTLE, Competitive Landscape, and multi-year Outlook) through a recursive, agent-driven pipeline.
+Pegasus is a **production-grade AI market research system** that autonomously generates research vectors, mines web intelligence, synthesizes structured strategic insights, and exports professional reports in **Markdown or PDF** format.
 
-Unlike simple chat-based tools, Pegasus is designed as a **research agent**, not a chatbot.
-
----
-
-## 🚀 Key Capabilities
-
-* **Autonomous Research Decomposition**
-  Automatically breaks a topic into multiple high-impact research vectors.
-
-* **Web-Grounded Intelligence**
-  Searches the open web, extracts clean content from real sources, and avoids hallucinated analysis.
-
-* **Recursive LLM Synthesis**
-  Summarizes each research vector independently, then synthesizes them into a coherent strategic report.
-
-* **Consulting-Grade Outputs**
-  Produces structured sections such as:
-
-  * Executive Summary
-  * SWOT Analysis
-  * PESTLE Analysis
-  * Competitive Landscape
-  * Strategic Outlook (multi-year)
-
-* **Interactive Desktop UI**
-  Built with PyQt5 for real-time streaming of insights, logs, and progress.
-
-* **Exportable Reports**
-  Final reports can be downloaded as Markdown for further conversion to PDF, DOCX, or slides.
+The system supports both:
+- 🖥️ **Graphical User Interface (GUI)** using PyQt5  
+- ⚙️ **Command-Line Interface (CLI)** for headless and automated execution  
 
 ---
 
-## 🧠 How Pegasus Works (Architecture Overview)
+## 🚀 Key Features
 
-Pegasus follows a **three-phase autonomous research pipeline**:
-
-### 1. Research Vector Generation
-
-The system uses an LLM to generate multiple, distinct research questions ("vectors") for a given topic. These vectors define the scope of the investigation.
-
-### 2. Vector Intelligence Mining
-
-For each research vector:
-
-* DuckDuckGo search is performed
-* Top sources are fetched
-* Clean textual content is extracted using Trafilatura
-* The LLM summarizes core intelligence from the sources
-
-Each vector is treated independently to avoid early bias.
-
-### 3. Master Strategic Synthesis
-
-All vector summaries are combined and passed back to the LLM, which:
-
-* Produces structured strategic sections
-* Uses only the gathered research context
-* Streams each section live into the UI
-
-This results in a **grounded, explainable, and auditable analysis**.
+- 🧠 **LLM-driven research planning** (multi-vector analysis)
+- 🌐 **Automated web search & content extraction**
+- 🔁 **Retry-safe & fallback-enabled AI calls**
+- 📚 **Per-vector source attribution (citations)**
+- 📄 **Professional PDF & Markdown export**
+- 🖥️ **Desktop GUI (PyQt5)**
+- ⚙️ **CLI mode for automation**
+- 🧩 **Single unified launcher (`main.py`)**
 
 ---
 
-## 🖥 User Interface Overview
+## 🧠 High-Level Architecture
 
-The Pegasus UI consists of:
+            ┌──────────────┐
+            │   User Input │
+            └──────┬───────┘
+                   │
+      ┌────────────▼────────────┐
+      │        main.py           │
+      │   (Mode Dispatcher)      │
+      └──────┬──────────┬───────┘
+             │          │
+    ┌────────▼───┐   ┌──▼────────┐
+    │   GUI Mode  │   │ CLI Mode  │
+    │  (ui.py)   │   │ (cli.py)  │
+    └──────┬─────┘   └────┬──────┘
+           │              │
+           └──────┬───────┘
+                  ▼
+    ┌──────────────────────────┐
+    │ RecursiveSectionalAgent  │
+    │        (agent.py)        │
+    └──────┬─────────┬────────┘
+           │         │
+ ┌─────────▼───┐ ┌───▼─────────┐
+ │ Web Search  │ │  LLM Engine │
+ │  (DDGS)     │ │  (Ollama)   │
+ └─────────┬───┘ └────┬────────┘
+           │          │
+    ┌──────▼──────────▼──────┐
+    │ Vector Summaries with   │
+    │ Source Attribution      │
+    └──────────┬──────────────┘
+               ▼
+    ┌─────────────────────────┐
+    │ Final Strategic Report  │
+    │  (Markdown / PDF)       │
+    └─────────────────────────┘
 
-* **Command Panel** — Enter a research topic and deploy the agent
-* **Research Tree** — Displays research vectors and mined source URLs
-* **Vector Intelligence Tab** — Shows per-vector summarized insights
-* **Master Strategic Analysis Tab** — Streams the final report section-by-section
-* **System Log Console** — Displays agent actions and execution status
 
 ---
 
-## 🛠 Technology Stack
+## 🔍 How Pegasus Works
 
-* **Language:** Python 3
-* **UI Framework:** PyQt5
-* **LLM Provider:** Ollama Cloud
-* **Search:** DuckDuckGo (ddgs)
-* **Content Extraction:** Trafilatura
-* **Rendering:** Markdown → HTML
+1. **Research Vector Generation**  
+   The LLM generates multiple focused research queries for a given topic.
+
+2. **Web Intelligence Mining**  
+   Each vector triggers:
+   - DuckDuckGo search
+   - Safe URL fetching with timeouts
+   - Content extraction via Trafilatura
+
+3. **Vector-Level Summarization**  
+   Each research vector is summarized independently along with its sources.
+
+4. **Master Report Synthesis**  
+   All vector summaries are combined into a structured strategic report.
+
+5. **Export**  
+   Reports can be exported as:
+   - `.md` (Markdown)
+   - `.pdf` (Professional PDF using ReportLab)
 
 ---
 
-## ⚙️ Installation & Setup
+## 🖥️ Usage
 
-### 1. Clone the Repository
-
+### ▶️ GUI Mode (Default)
 ```bash
-git clone https://github.com/<your-username>/Pegasus---A-market-researcher.git
-cd Pegasus---A-market-researcher
-```
+python main.py
 
-### 2. Create & Activate Virtual Environment
+▶️ GUI Mode (Explicit)
+python main.py gui
+▶️ CLI Mode
+python main.py cli "AI semiconductor market overview"
 
-**Windows (PowerShell):**
+▶️ CLI Mode + PDF Export
+python main.py cli "AI semiconductor market overview" --pdf
 
-```powershell
-python -m venv venv
-venv\Scripts\Activate.ps1
-```
+🔐 Environment Setup
 
-### 3. Install Dependencies
+Pegasus requires an Ollama API key.
 
-```powershell
-pip install -r requirements.txt
-```
+Windows (PowerShell)
+setx OLLAMA_API_KEY "your_api_key_here"
 
-### 4. Set Ollama API Key
-
-```powershell
-$env:OLLAMA_API_KEY="your_api_key_here"
-```
-
-### 5. Run Pegasus
-
-```powershell
-python pegasus.py
-```
-
----
-
-## 📄 Example Use Cases
-
-* Market & industry analysis
-* Competitive intelligence
-* Technology landscape studies
-* Investment & due-diligence briefs
-* Internal strategy research
-* Academic or capstone projects
-
----
-
-## ⚠️ Disclaimer
-
-Pegasus provides **AI-assisted research and synthesis** based on publicly available information. Outputs should be reviewed and validated before making business, financial, or policy decisions.
-
----
-
-## 📌 Roadmap
-
-* Source-level citations per insight
-* Modular codebase refactor
-* PDF & DOCX export
-* Multi-model support (Gemini / OpenAI)
-* CLI mode for automation
+Linux / macOS
+export OLLAMA_API_KEY="your_api_key_here"
 
 
-## ⭐ Why Pegasus Is Different
+Restart the terminal after setting the variable.
 
-Pegasus is not a prompt wrapper.
+🧰 Tech Stack
 
-It is a **system-level AI research agent** designed to:
+Python 3.10+
 
-* Decompose problems
-* Ground analysis in real data
-* Produce decision-ready intelligence
+Ollama (LLM inference)
 
-This makes it suitable for **professional, academic, and enterprise environments**.
+PyQt5 (GUI)
+
+DuckDuckGo Search (ddgs)
+
+Trafilatura (web extraction)
+
+ReportLab (PDF generation)
+
+📌 Use Cases
+
+Market & competitor analysis
+
+Strategic planning and forecasting
+
+Due diligence research
+
+Consulting & analytics workflows
+
+AI-assisted knowledge synthesis
