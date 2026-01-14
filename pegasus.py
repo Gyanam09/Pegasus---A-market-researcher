@@ -7,6 +7,8 @@ from datetime import datetime
 from ollama import Client
 from ddgs import DDGS 
 import os
+import Pegasus---A-market-researcher.config
+
 
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
@@ -36,7 +38,8 @@ class RecursiveSectionalAgent(QThread):
     host="https://ollama.com",
     headers={'Authorization': 'Bearer ' + os.environ.get('OLLAMA_API_KEY')}
 )
-        self.model = 'gpt-oss:120b'
+        self.model = config.PRIMARY_MODEL
+
         self.vector_summaries = [] # Stores summarized intel from each query
 
     def run(self):
@@ -45,7 +48,7 @@ class RecursiveSectionalAgent(QThread):
             
             # --- PHASE 1: RESEARCH VECTOR GENERATION ---
             v_prompt = (
-                "Generate a Python list of exactly 7 distinct market research queries "
+                f"Generate a Python list of exactly {config.NUM_RESEARCH_VECTORS} distinct market research queries"
                 f"for deep due diligence on: {self.target}. Return ONLY the Python list."
             )
             resp = self.client.chat(self.model, messages=[{'role': 'user', 'content': v_prompt}])
@@ -62,12 +65,12 @@ class RecursiveSectionalAgent(QThread):
                 
                 raw_texts = []
                 try:
-                    results = DDGS().text(q, max_results=3)
+                    results = DDGS().text(q, max_results=config.MAX_SOURCES_PER_VECTOR)
                     for r in results:
                         link = r['href']
                         self.url_sig.emit(q, link)
                         data = trafilatura.extract(trafilatura.fetch_url(link))
-                        if data: raw_texts.append(data[:2000])
+                        if data: raw_texts.append(data[:config.MAX_CHARS_PER_SOURCE])              
                 except: pass
 
                 if raw_texts:
@@ -100,7 +103,7 @@ class RecursiveSectionalAgent(QThread):
                     f"You are the Pegasus Lead Partner. Using ONLY the following research data, "
                     f"write the '{title}' section of a report for {self.target}. {instruction} "
                     "Be professional, use Markdown headers, and do not truncate. Provide the full text for this section."
-                    f"\n\nRESEARCH DATA:\n{context_for_master[:10000]}"
+                    f"\n\nRESEARCH DATA:\n{context_for_master[:config.MAX_MASTER_CONTEXT_CHARS]}"
                 )
                 
                 section_resp = self.client.chat(self.model, messages=[{'role': 'user', 'content': section_prompt}])
