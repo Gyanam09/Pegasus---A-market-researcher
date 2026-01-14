@@ -1,27 +1,44 @@
 import sys
-import trafilatura
-import ast
+import os
 import re
+import ast
+import json
 import markdown
+import trafilatura
 from datetime import datetime
 from ollama import Client
-from ddgs import DDGS 
-import os
-import json
+from ddgs import DDGS
 
-# ✅ Replace Plotly with Matplotlib
+# -------------------------------
+# Qt MUST be configured FIRST
+# -------------------------------
+from PyQt5.QtCore import Qt, QCoreApplication
+QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+
+# -------------------------------
+# Matplotlib
+# -------------------------------
 import matplotlib
 matplotlib.use('Qt5Agg')
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QHBoxLayout, QPushButton, QLineEdit, QTextEdit, 
-                             QLabel, QProgressBar, QFrame, QSplitter, 
-                             QTabWidget, QTreeWidget, QTreeWidgetItem,
-                             QFileDialog, QMessageBox, QScrollArea)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont, QColor
+# -------------------------------
+# Qt Widgets / GUI
+# -------------------------------
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout,
+    QHBoxLayout, QPushButton, QLineEdit, QTextEdit,
+    QLabel, QProgressBar, QFrame, QSplitter,
+    QTabWidget, QTreeWidget, QTreeWidgetItem,
+    QFileDialog, QMessageBox, QScrollArea
+)
+from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtGui import QFont, QColor, QPixmap
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+
+
+
 
 # 1. RECURSIVE SECTIONAL ENGINE (The Worker)
 
@@ -34,6 +51,9 @@ class RecursiveSectionalAgent(QThread):
     progress_sig = pyqtSignal(int)
     finished_sig = pyqtSignal()
     chart_sig = pyqtSignal(dict)
+    image_sig = pyqtSignal(str, str)
+    analytical_sig = pyqtSignal(str, str)
+
 
     def __init__(self, target):
         super().__init__()
@@ -112,13 +132,24 @@ class RecursiveSectionalAgent(QThread):
                     for r in results:
                         link = r['href']
                         self.url_sig.emit(q, link)
+
                         try:
                             downloaded = trafilatura.fetch_url(link)
                             data = trafilatura.extract(downloaded)
-                            if data: 
-                                raw_texts.append(data[: 2000])
-                        except Exception as e:
-                            self.log_sig.emit("WARN", f"Failed to fetch {link}: {e}")
+                            if data:
+                                raw_texts.append(data[:2000])
+                        except:
+                            pass
+
+                        # 🔹 NEW: collect images (lightweight, safe)
+                        try:
+                            html = trafilatura.fetch_url(link)
+                            imgs = re.findall(r'<img[^>]+src=["\'](.*?)["\']', html or "", re.IGNORECASE)
+                            for img in imgs[:2]:   # limit per page
+                                self.image_sig.emit(q, img)
+                        except:
+                            pass
+
                 except Exception as e:
                     self.log_sig.emit("WARN", f"Search failed for '{q}': {e}")
 
@@ -128,6 +159,16 @@ class RecursiveSectionalAgent(QThread):
                     sub_intel = self.chat_with_retry(sub_prompt)
                     intel_txt = sub_intel['message']['content']
                     self.vector_intel_sig.emit(q, intel_txt)
+                    analytical_prompt = (
+                        "You must output ONLY a valid Mermaid mindmap.\n"
+                        "Always start with 'mindmap'\n"
+                        "Use 2 spaces per indent level\n"
+                        "Wrap node text in ( )\n\n"
+                        + intel_txt
+                    )
+                    analytical_intel = self.chat_with_retry(analytical_prompt)
+                    self.analytical_sig.emit(q, analytical_intel['message']['content'])
+
                     self.vector_summaries.append(f"RESEARCH DATA FOR {q}: {intel_txt}")
                 except Exception as e:
                     self.log_sig.emit("ERROR", f"Failed to summarize vector '{q}': {e}")
@@ -173,17 +214,49 @@ class RecursiveSectionalAgent(QThread):
                 self.progress_sig.emit(50 + int(((i+1)/len(report_sections))*40))
 
             # --- PHASE 3B: CHART DATA ---
-            self.log_sig.emit("AI", "Generating market projection data...")
+            self.log_sig.emit("AI", "Generating market visualization data...")
+
             chart_prompt = (
-                "From the following research data, estimate a plausible global market size trajectory.\n"
-                "Return STRICT JSON only in this exact format:\n"
+                "From the following research data, generate visualization data.\n\n"
+                "Return STRICT JSON ONLY in this exact format:\n\n"
                 "{\n"
                 '  "market_projection": {\n'
                 '    "years": [2024, 2025, 2026, 2027, 2028, 2029, 2030],\n'
-                '    "values": [number, number, number, number, number, number, number]\n'
+                '    "values": [500, 505, 512.6, 522.8, 536.9, 553.0, 575.1]\n'
+                "  },\n"
+                '  "regional_split": {\n'
+                '    "USA": 38,\n'
+                '    "China": 32,\n'
+                '    "EU": 18,\n'
+                '    "Rest of World": 12\n'
+                "  },\n"
+                '  "swot": {\n'
+                '    "Strengths": 8,\n'
+                '    "Weaknesses": 4,\n'
+                '    "Opportunities": 9,\n'
+                '    "Threats": 6\n'
+                "  },\n"
+                '  "pestle": {\n'
+                '    "Political": 6,\n'
+                '    "Economic": 8,\n'
+                '    "Social": 5,\n'
+                '    "Technological": 9,\n'
+                '    "Legal": 6,\n'
+                '    "Environmental": 4\n'
+                "  },\n"
+                '  "moat": {\n'
+                '    "Cost Advantage": 7,\n'
+                '    "Switching Costs": 6,\n'
+                '    "Network Effects": 5,\n'
+                '    "IP / Patents": 8,\n'
+                '    "Brand Power": 6\n'
                 "  }\n"
                 "}\n\n"
-                "Use only the provided research context. Do not include commentary.\n\n"
+                "Rules:\n"
+                "- All scores must be integers from 1 to 10\n"
+                "- Percentages must sum to 100\n"
+                "- Use only the provided research data\n"
+                "- Do NOT include commentary or markdown\n\n"
                 f"RESEARCH DATA:\n{context_for_master[:12000]}"
             )
 
@@ -287,9 +360,30 @@ class PegasusTerminal(QMainWindow):
         self.tabs.addTab(self.insight_view, "Vector Intelligence")
         self.tabs.addTab(self.report_view, "Strategic Report")
         self.tabs.addTab(chart_scroll, "Market Charts")  # ✅ Changed from chart_view
+        # 🔹 Reference Images Panel
+        self.image_scroll = QScrollArea()
+        self.image_container = QWidget()
+        self.image_layout = QVBoxLayout(self.image_container)
+
+        self.image_scroll.setWidgetResizable(True)
+        self.image_scroll.setWidget(self.image_container)
+
+        self.tabs.addTab(self.image_scroll, "Reference Images")
+
 
         splitter.addWidget(self.tabs)
         main_layout.addWidget(splitter)
+
+        # 🔹 Analytical Map Panel
+        self.kmap_scroll = QScrollArea()
+        self.kmap_container = QWidget()
+        self.kmap_layout = QVBoxLayout(self.kmap_container)
+
+        self.kmap_scroll.setWidgetResizable(True)
+        self.kmap_scroll.setWidget(self.kmap_container)
+
+        self.tabs.addTab(self.kmap_scroll, "Analytical Map")
+
 
         # 4. FOOTER
         self.prog = QProgressBar()
@@ -413,7 +507,11 @@ class PegasusTerminal(QMainWindow):
         self.btn_run.setEnabled(False)
         self.btn_save.setEnabled(False)
         self.prog.show()
-    
+
+        # Clear old images
+        for i in reversed(range(self.image_layout.count())):
+            self.image_layout.itemAt(i).widget().deleteLater()
+
         self.worker = RecursiveSectionalAgent(target)
         self.worker.log_sig.connect(self.log)
         self.worker.query_sig.connect(self.add_query_node)
@@ -422,7 +520,9 @@ class PegasusTerminal(QMainWindow):
         self.worker.master_section_sig.connect(self.stream_master_section)
         self.worker.finished_sig.connect(self.on_complete)
         self.worker.progress_sig.connect(self.prog.setValue)
-        self.worker.chart_sig.connect(self.render_market_chart)  # ✅ This should work now
+        self.worker.chart_sig.connect(self.render_market_chart)
+        self.worker.image_sig.connect(self.add_image) 
+        self.worker.analytical_sig.connect(self.add_analytical_card)
         self.worker.start()
 
     def add_query_node(self, q):
@@ -517,70 +617,248 @@ class PegasusTerminal(QMainWindow):
 
     def render_market_chart(self, data):
         try:
-            projection = data["market_projection"]
-            years = projection["years"]
-            values = projection["values"]
+            # -----------------------------
+            # Helper: Card Styling
+            # -----------------------------
+            def style_card(ax, title):
+                ax.set_facecolor('#11161d')
+                ax.set_title(title, color='#ffaa00', fontsize=12, weight='bold', pad=12)
 
-            # Clear previous plot
+                for spine in ax.spines.values():
+                    spine.set_visible(True)
+                    spine.set_color('#30363d')
+                    spine.set_linewidth(1.2)
+
+                ax.tick_params(colors='#d1d5db', labelsize=9)
+
+            # -----------------------------
+            # Extract Data
+            # -----------------------------
+            mp = data["market_projection"]
+            years = mp["years"]
+            values = mp["values"]
+
+            regional = data["regional_split"]
+            swot = data["swot"]
+            pestle = data["pestle"]
+            moat = data["moat"]
+
+            # -----------------------------
+            # Clear Figure
+            # -----------------------------
             self.chart_figure.clear()
-            ax = self.chart_figure.add_subplot(111)
-        
-            # Plot data with styling
-            ax.plot(years, values, 'o-', color='#ffaa00', linewidth=3, 
-                markersize=10, markerfacecolor='#ffaa00', markeredgewidth=2, 
-                markeredgecolor='#ffffff')
-        
-            # Add value labels on points
-            for i, (year, value) in enumerate(zip(years, values)):
-                ax.annotate(f'${value:.1f}B', 
-                       xy=(year, value), 
-                       xytext=(0, 10),
-                       textcoords='offset points',
-                       ha='center',
-                       fontsize=9,
-                       color='#d1d5db',
-                       weight='bold')
-        
-            # Styling
-            ax.set_xlabel('Year', color='#d1d5db', fontsize=13, weight='bold')
-            ax.set_ylabel('Market Size (USD Billions)', color='#d1d5db', fontsize=13, weight='bold')
-            ax.set_title('LLM-Derived Market Size Projection', 
-                color='#ffaa00', fontsize=16, weight='bold', pad=20)
-        
-            # Background and grid
-            ax.set_facecolor('#0b0e14')
-            self.chart_figure.patch.set_facecolor('#0b0e14')
-            ax.grid(True, color='#30363d', alpha=0.5, linestyle='--', linewidth=0.8)
-        
-            # Tick styling
-            ax.tick_params(colors='#d1d5db', labelsize=10)
-        
-            # Spine styling
-            for spine in ['bottom', 'top', 'left', 'right']:
-                ax.spines[spine].set_color('#30363d')
-                ax.spines[spine].set_linewidth(1.5)
-        
-            # Format y-axis to show values with B suffix
-            ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(
-                lambda x, p: f'${x:.0f}B'
-            ))
-        
-            # Tight layout
-            self.chart_figure.tight_layout()
-        
-            # Redraw canvas
+
+            # -----------------------------
+            # Create Grid (5 blocks)
+            # -----------------------------
+            ax_market = self.chart_figure.add_subplot(3, 2, 1)
+            ax_region = self.chart_figure.add_subplot(3, 2, 2)
+            ax_swot   = self.chart_figure.add_subplot(3, 2, 3)
+            ax_pestle = self.chart_figure.add_subplot(3, 2, 4, polar=True)
+            ax_moat   = self.chart_figure.add_subplot(3, 2, 5, polar=True)
+
+            # -----------------------------
+            # 1. Market Projection
+            # -----------------------------
+            ax_market.plot(
+                years, values,
+                color='#ffaa00', linewidth=3,
+                marker='o', markersize=7,
+                markerfacecolor='#ffaa00',
+                markeredgecolor='white'
+            )
+            ax_market.set_xlabel("Year", color='#d1d5db')
+            ax_market.set_ylabel("Market Size (USD Bn)", color='#d1d5db')
+            ax_market.grid(True, color='#30363d', alpha=0.4)
+            style_card(ax_market, "Market Projection")
+
+            # -----------------------------
+            # 2. Regional Split (Pie)
+            # -----------------------------
+            labels = list(regional.keys())
+            sizes = list(regional.values())
+            colors = ['#58a6ff', '#ff7b72', '#d29922', '#8b949e']
+
+            ax_region.pie(
+                sizes,
+                labels=labels,
+                autopct='%1.0f%%',
+                startangle=140,
+                colors=colors,
+                textprops={'color': 'white', 'fontsize': 9}
+            )
+            ax_region.axis('equal')
+            style_card(ax_region, "Regional Split")
+
+            # -----------------------------
+            # 3. SWOT Index (Bar)
+            # -----------------------------
+            swot_labels = list(swot.keys())
+            swot_values = list(swot.values())
+            swot_colors = ['#2ecc71', '#e74c3c', '#3498db', '#f1c40f']
+
+            ax_swot.bar(swot_labels, swot_values, color=swot_colors)
+            ax_swot.set_ylim(0, 10)
+            style_card(ax_swot, "SWOT Index")
+
+            # -----------------------------
+            # 4. PESTLE Radar
+            # -----------------------------
+            pestle_labels = list(pestle.keys())
+            pestle_values = list(pestle.values())
+            angles = [n / float(len(pestle_labels)) * 2 * 3.14159 for n in range(len(pestle_labels))]
+            angles += angles[:1]
+            pestle_values += pestle_values[:1]
+
+            ax_pestle.plot(angles, pestle_values, color='#58a6ff', linewidth=2)
+            ax_pestle.fill(angles, pestle_values, color='#58a6ff', alpha=0.3)
+            ax_pestle.set_thetagrids(
+                [a * 180 / 3.14159 for a in angles[:-1]],
+                pestle_labels
+            )
+            ax_pestle.set_rlabel_position(0)
+            style_card(ax_pestle, "PESTLE Radar")
+
+            # -----------------------------
+            # 5. Economic Moat Radar
+            # -----------------------------
+            moat_labels = list(moat.keys())
+            moat_values = list(moat.values())
+            angles = [n / float(len(moat_labels)) * 2 * 3.14159 for n in range(len(moat_labels))]
+            angles += angles[:1]
+            moat_values += moat_values[:1]
+
+            ax_moat.plot(angles, moat_values, color='#ffaa00', linewidth=2)
+            ax_moat.fill(angles, moat_values, color='#ffaa00', alpha=0.3)
+            ax_moat.set_thetagrids(
+                [a * 180 / 3.14159 for a in angles[:-1]],
+                moat_labels
+            )
+            ax_moat.set_rlabel_position(0)
+            style_card(ax_moat, "Economic Moat")
+
+            # -----------------------------
+            # Layout & Render
+            # -----------------------------
+            self.chart_figure.subplots_adjust(
+                left=0.04,
+                right=0.98,
+                top=0.95,
+                bottom=0.05,
+                hspace=0.45,
+                wspace=0.25
+            )
+
             self.chart_canvas.draw()
-        
-            # Switch to chart tab
-            self.tabs.setCurrentIndex(2)  # Market Charts tab
-        
-            self.log("SUCCESS", "Market projection chart rendered successfully.")
+            self.tabs.setCurrentIndex(2)
+
+            self.log("SUCCESS", "All charts rendered in 5-block dashboard layout.")
 
         except Exception as e:
             self.log("ERROR", f"Chart render failed: {e}")
             import traceback
             self.log("DEBUG", traceback.format_exc())
 
+    
+    def add_image(self, title, url):
+        lbl = QLabel()
+        lbl.setStyleSheet("color:#ffaa00;")
+
+        pix = QPixmap()
+        try:
+            import requests
+            r = requests.get(url, timeout=5)
+            if r.status_code != 200:
+                return
+
+            if not pix.loadFromData(r.content):
+                return 
+
+            lbl.setPixmap(pix.scaledToWidth(220, Qt.SmoothTransformation))
+            self.image_layout.addWidget(lbl)
+
+        except Exception as e:
+            self.log("WARN", f"Image skipped: {e}")
+
+
+
+    def sanitize_for_graphviz(self, text: str) -> str:
+        """
+        Remove characters that Graphviz (Windows) cannot encode.
+        """
+        replacements = {
+            "≈": "~",
+            "–": "-",
+            "—": "-",
+            "→": "->",
+            "←": "<-",
+            "“": '"',
+            "”": '"',
+            "’": "'",
+            "‘": "'",
+            "•": "*",
+            "…": "...",
+        }
+
+        for k, v in replacements.items():
+            text = text.replace(k, v)
+
+        # Final hard safety: ASCII only
+        return text.encode("ascii", "ignore").decode("ascii")
+
+
+    def add_analytical_card(self, title, summary):
+        import re, pydot
+        from PyQt5.QtWidgets import QGroupBox, QVBoxLayout, QLabel
+        from PyQt5.QtCore import QUrl
+
+        match = re.search(r"mindmap.*", summary, re.DOTALL | re.IGNORECASE)
+        if not match:
+            return
+
+        summary = self.sanitize_for_graphviz(summary)
+        lines = [l.rstrip() for l in summary.splitlines() if l.strip()]
+
+        if len(lines) < 2:
+            self.log("WARN", f"Analytical map too short for {title}")
+            return
+
+        graph = pydot.Dot(graph_type='graph', bgcolor='transparent')
+
+        root = pydot.Node("root", label=title, shape="ellipse",
+                          style="filled", fillcolor="#ffaa0044",
+                          fontcolor="white")
+        graph.add_node(root)
+
+        parent = root
+        for line in lines[1:]:
+            label = line.strip(" ()")
+            node = pydot.Node(label[:40], label=label,
+                              shape="box", style="rounded,filled",
+                              fillcolor="#0f1117",
+                              fontcolor="#e0e0e0")
+            graph.add_node(node)
+            graph.add_edge(pydot.Edge(parent, node))
+
+        try:
+            svg = graph.create_svg().decode("utf-8")
+        except Exception as e:
+            self.log("WARN", f"Graphviz unavailable, showing text fallback: {e}")
+            svg = f"<pre>{summary[:800]}</pre>"
+
+        html = f"<html><body style='background:transparent'>{svg}</body></html>"
+
+        box = QGroupBox(title)
+        box.setCheckable(True)
+        box.setChecked(False)
+        layout = QVBoxLayout(box)
+
+        view = QWebEngineView()
+        view.setMinimumHeight(400)
+        view.setHtml(html, QUrl("about:blank"))
+
+        layout.addWidget(view)
+        self.kmap_layout.addWidget(box)
 
 
 
