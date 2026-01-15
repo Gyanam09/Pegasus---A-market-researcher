@@ -39,7 +39,7 @@ Pegasus is a next-generation market research tool that leverages local LLMs (via
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/Balaji-Nirmit/Pegasus---A-market-researcher.git](https://github.com/Balaji-Nirmit/Pegasus---A-market-researcher.git)
+   git clone https://github.com/Balaji-Nirmit/Pegasus---A-market-researcher.git
    cd Pegasus---A-market-researcher
    ```
 2. **Install Dependencies:**
@@ -47,3 +47,16 @@ Pegasus is a next-generation market research tool that leverages local LLMs (via
    pip install -r requirements.txt
    ```
 3. **Run the Application:**
+
+### Screenshots
+
+<img width="1260" height="732" alt="image" src="https://github.com/user-attachments/assets/75b702a2-4f03-4532-9f8c-4aaa7dccaec1" />
+
+<img width="1260" height="696" alt="image" src="https://github.com/user-attachments/assets/7a4f87eb-fd84-4b65-a600-a234962dca19" />
+
+<img width="1260" height="697" alt="image" src="https://github.com/user-attachments/assets/7dacc844-a398-47a5-b0a4-531442bb6a8e" />
+
+<img width="1262" height="613" alt="image" src="https://github.com/user-attachments/assets/a4605984-da18-4a24-a7f5-7573b779f8d6" />
+
+<img width="594" height="598" alt="image" src="https://github.com/user-attachments/assets/ba4d7f92-eb6d-4599-8f1a-98f792b89c77" />
+
